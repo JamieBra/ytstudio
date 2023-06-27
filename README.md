@@ -44,6 +44,7 @@ Use this [example](examples/Studio.py) for setting up the Studio object!
 - [ ] Better tests
 - [ ] Update examples
 - [ ] Create PIP package
+- [ ] Allow session token to passed in with cookies
 - [ ] Implement for Studio.list_playlists() and Studio.list_videos():
     - [ ] Better method for specifying masks?
     - [ ] Paging support
