@@ -27,7 +27,6 @@ if TYPE_CHECKING:
     from _typeshed import (FileDescriptorOrPath, SupportsKeysAndGetItem,
                            SupportsRead)
 
-ALL_TRUE = dict(all=True)
 METADATA_SUCCESS = dict(resultCode='UPDATE_SUCCESS')
 YT_STUDIO_URL = 'https://studio.youtube.com'
 

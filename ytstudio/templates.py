@@ -1,5 +1,7 @@
 from typing import Any
 
+ALL_TRUE = dict(all=True)
+
 EMPTY_DICT = {}
 EMPTY_LIST = []
 CONTEXT: dict[str, Any] = dict(
@@ -24,24 +26,7 @@ CONTEXT: dict[str, Any] = dict(
 
 CREATE_PLAYLIST: dict[str, Any] = dict(**CONTEXT)
 LIST_PLAYLISTS: dict[str, Any] = dict(**CONTEXT)
-LIST_VIDEOS: dict[str, Any] = {
-    'filter': {
-        'and': {
-            'operands': [{
-                'channelIdIs': {
-                    'value': 'UC0gW_FQm0Fn8SfYRPrRFnHw'
-                }
-            },
-                {
-                'videoOriginIs': {
-                    'value': 'VIDEO_ORIGIN_UPLOAD'
-                }
-            }]
-        }
-    },
-    'order': 'VIDEO_ORDER_DISPLAY_TIME_DESC',
-    **CONTEXT
-}
+LIST_VIDEOS: dict[str, Any] = dict(**CONTEXT)
 METADATA_UPDATE: dict[str, Any] = dict(**CONTEXT)
 UPLOAD_VIDEO: dict[str, Any] = dict(**CONTEXT)
 
