@@ -12,14 +12,22 @@ For now, you can install with PIP.
 
 ## Features
 
-Look at the documentation: [Click here](https://yusufusta.github.io/ytstudio/)
-
 - Fully typed!
+- Names reflecting the official Youtube GUI in browser!
 - [List Videos](examples/list_playlists.py)
+    - Specify page size.
+    - Specify what attributes to retrieve.
 - [List Playlists](examples/list_videos.py)
+    - Specify page size.
+    - Specify what attributes to retrieve.
 - [Uploading Video](examples/upload_video.py) (**NOT LIMITED** - official API's videos.insert charges you 1600 quota units)
+    - Built-in progress bar.
+    - Specify default fields.
+    - Ability to add custom fields to support changes in the API and more advanced options.
 - [Deleting Video](examples/delete_video.py) (not implemented yet)
 - [Edit Video](examples/edit_video.py) (includes scheduling uploads)
+    - Easy to use fields for every option that is editable in browser before pressing 'SHOW MORE'. This is mainly due to how many fields there are the variations within.
+    - Ability to add custom fields to support changes in the API and more advanced options.
 - [Get Video](examples/get_video.py) (not implemented yet)
 
 ## Login
@@ -32,9 +40,18 @@ Use this [example](examples/Studio.py) for setting up the Studio object!
 
 ## TO-DO
 
-- [ ] Better Documentation
-- [ ] Better Tests
-- [ ] Create pypi package
+- [ ] Better documentation
+- [ ] Better tests
+- [ ] Update examples
+- [ ] Create PIP package
+- [ ] Implement for Studio.list_playlists() and Studio.list_videos():
+    - [ ] Better method for specifying masks?
+    - [ ] Paging support
+    - [ ] Listing order
 - [ ] Implement Studio.delete_video()
 - [ ] Implement Studio.get_video()
-- [ ] Implement all fields for Studio.edit_video()
+- [ ] Implement for Studio.edit_video():
+    - [ ] Set as Premiere
+    - [ ] Subtitles?
+    - [ ] End Screens?
+    - [ ] Cards?
