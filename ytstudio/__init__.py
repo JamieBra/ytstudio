@@ -1,322 +1,273 @@
+from __future__ import annotations
+
+from base64 import b64encode
+from datetime import datetime
 from hashlib import sha1
-import time
-import aiohttp
-import asyncio
-import aiofiles
-from pyquery import PyQuery as pq
-import js2py
-import js2py.pyjs
-import random
-import os
-import json
-from .templates import Templates
-import typing
-import pathlib
-import base64
-import datetime
+from http.cookiejar import CookieJar
+from operator import itemgetter
+from os.path import getsize
+from pprint import pprint
+from time import time
+from typing import TYPE_CHECKING, Any, Iterable, MutableMapping, cast
+from urllib.parse import urljoin
+from uuid import uuid4
+
+from js2py import EvalJs  # type: ignore
+from lxml.html import HtmlElement  # type: ignore
+from pyquery import PyQuery  # type: ignore
+from requests import Session
+from tqdm import tqdm
+from tqdm.utils import CallbackIOWrapper
+
+from .templates import (CREATE_PLAYLIST, LIST_PLAYLISTS, LIST_VIDEOS,
+                        METADATA_UPDATE, UPLOAD_VIDEO, generate)
+from .typing import (ANY_TUPLE, JSON, MASK, AllowCommentsMode,
+                     DefaultSortOrder, Privacy)
+
+if TYPE_CHECKING:
+    from _typeshed import (FileDescriptorOrPath, SupportsKeysAndGetItem,
+                           SupportsRead)
+
+ALL_TRUE = dict(all=True)
+METADATA_SUCCESS = dict(resultCode='UPDATE_SUCCESS')
+YT_STUDIO_URL = 'https://studio.youtube.com'
 
 
-class Studio:
-    YT_STUDIO_URL = "https://studio.youtube.com"
-    USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36"
-    TRANSFERRED_BYTES = 0
-    CHUNK_SIZE = 64*1024
+class Studio(Session):
+    def __init__(
+            self,
+            cookies: CookieJar | Iterable[tuple[str, str]] | SupportsKeysAndGetItem[str, str],
+            session_token: str
+    ) -> None:
+        super().__init__()
+        self.cookies.update(  # type: ignore
+            cookies
+        )
+        self.session_token = session_token
 
-    def __init__(self, cookies: dict = {'SESSION_TOKEN': '', 'VISITOR_INFO1_LIVE': '', 'PREF': '', 'LOGIN_INFO': '', 'SID': '', '__Secure-3PSID': '.', 'HSID': '',
-                 'SSID': '', 'APISID': '', 'SAPISID': '', '__Secure-3PAPISID': '', 'YSC': '', 'SIDCC': ''}):
-        self.SAPISIDHASH = self.generateSAPISIDHASH(cookies['SAPISID'])
-        self.cookies = cookies
-        self.Cookie = " ".join(
-            [f"{c}={cookies[c]};" if not c in ["SESSION_TOKEN", "BOTGUARD_RESPONSE"] else "" for c in cookies.keys()])
-        self.HEADERS = {
-            'Authorization': f'SAPISIDHASH {self.SAPISIDHASH}',
-            'Content-Type': 'application/json',
-            'Cookie': self.Cookie,
-            'X-Origin': self.YT_STUDIO_URL,
-            'User-Agent': self.USER_AGENT
-        }
-        self.session = aiohttp.ClientSession(headers=self.HEADERS)
-        self.loop = asyncio.get_event_loop()
-        self.config = {}
-        self.js = js2py.EvalJs()
-        self.js.execute("var window = {ytcfg: {}};")
-
-    def __del__(self):
-        asyncio.run(self.session.close())
-
-    def generateSAPISIDHASH(self, SAPISID) -> str:
-        hash = f"{round(time.time())} {SAPISID} {self.YT_STUDIO_URL}"
-        sifrelenmis = sha1(hash.encode('utf-8')).hexdigest()
-        return f"{round(time.time())}_{sifrelenmis}"
-
-    async def getMainPage(self) -> str:
-        page = await self.session.get(self.YT_STUDIO_URL)
-        return await page.text("utf-8")
-
-    async def login(self) -> bool:
-        """
-        Login to your youtube account
-        """
-        page = await self.getMainPage()
-        _ = pq(page)
-        script = _("script")
-        if len(script) < 1:
-            raise Exception("Didn't find script. Can you check your cookies?")
-        script = script[0].text
-        self.js.execute(
-            f"{script} window.ytcfg = ytcfg;")
-
-        INNERTUBE_API_KEY = self.js.window.ytcfg.data_.INNERTUBE_API_KEY
-        CHANNEL_ID = self.js.window.ytcfg.data_.CHANNEL_ID
-        DELEGATED_SESSION_ID = self.js.window.ytcfg.data_.DELEGATED_SESSION_ID
-
-        if INNERTUBE_API_KEY == None or CHANNEL_ID == None:
-            raise Exception(
-                "Didn't find INNERTUBE_API_KEY or CHANNEL_ID. Can you check your cookies?")
-        self.config = {'INNERTUBE_API_KEY': INNERTUBE_API_KEY,
-                       'CHANNEL_ID': CHANNEL_ID, 'data_': self.js.window.ytcfg.data_}
-        self.templates = Templates({
-            'channelId': CHANNEL_ID,
-            'sessionToken': self.cookies['SESSION_TOKEN'],
-            'botguardResponse': self.cookies['BOTGUARD_RESPONSE'] if 'BOTGUARD_RESPONSE' in self.cookies else '',
-            'delegatedSessionId': DELEGATED_SESSION_ID
+        sapisid = cast(str, self.cookies['SAPISID'])
+        sapisid_hash = self.generate_sapisis_hash(sapisid)
+        self.headers.update({
+            'Authorization': f'SAPISIDHASH {sapisid_hash}',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+            'X-Origin': YT_STUDIO_URL
         })
 
-        return True
+        self.js = EvalJs()
+        self.js.execute(  # type: ignore
+            'var window = {ytcfg: {}};'
+        )
 
-    def generateHash(self) -> str:
-        harfler = list(
-            '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
-        keys = ['' for i in range(0, 36)]
-        b = 0
-        c = ""
-        e = 0
+    def generate_sapisis_hash(self, sapisid: str) -> str:
+        current_time = round(time())
+        hash = f'{current_time} {sapisid} {YT_STUDIO_URL}'
+        sifrelenmis = sha1(hash.encode()).hexdigest()
+        return f'{current_time}_{sifrelenmis}'
 
-        while e < 36:
-            if 8 == e or 13 == e or 18 == e or 23 == e:
-                keys[e] = "-"
-            else:
-                if 14 == e:
-                    keys[e] = "4"
-                elif 2 >= b:
-                    b = round(33554432 + 16777216 * random.uniform(0, 0.9))
-                c = b & 15
-                b = b >> 4
-                keys[e] = harfler[c & 3 | 8 if 19 == e else c]
-            e += 1
+    def get_main_page(self) -> str:
+        page = self.get(YT_STUDIO_URL)
+        return page.text
 
-        return "".join(keys)
+    def login(self) -> None:
+        '''
+        Login to your youtube account
+        '''
+        page = self.get_main_page()
+        query = PyQuery(page)
+        script = query('script')
+        if len(script) < 1:
+            raise Exception('Failed to find script. Can you check your cookies?')
+        script = cast(HtmlElement, script[0])
+        self.js.execute(  # type: ignore
+            f'{script.text} window.ytcfg = ytcfg;'
+        )
 
-    async def fileSender(self, file_name):
-        async with aiofiles.open(file_name, 'rb') as f:
-            chunk = await f.read(self.CHUNK_SIZE)
-            while chunk:
-                if self.progress != None:
-                    self.TRANSFERRED_BYTES += len(chunk)
-                    self.progress(self.TRANSFERRED_BYTES,
-                                  os.path.getsize(file_name))
+        channel_id = self.js.window.ytcfg.data_.CHANNEL_ID
+        on_behalf_of_user = self.js.window.ytcfg.data_.DELEGATED_SESSION_ID
+        if channel_id is None or on_behalf_of_user is None:
+            raise Exception('Unable to find CHANNEL_ID or DELEGATED_SESSION_ID. Can you check your cookies?')
+        generate(self.session_token, channel_id, on_behalf_of_user)
 
-                self.TRANSFERRED_BYTES += len(chunk)
-                yield chunk
-                chunk = await f.read(self.CHUNK_SIZE)
-                if not chunk:
-                    break
+    def check_response(self, name: Any, response: JSON, *check_present: str, **check_expected: Any) -> Any:
+        try:
+            if not (check_expected.items() <= response.items()):
+                raise KeyError()
+            if check_present:
+                return itemgetter(*check_present)(response)
+        except KeyError:
+            pprint(response)
+            raise Exception(f'Failed: {name}!')
 
-    async def uploadFileToYoutube(self, upload_url, file_path):
-        self.TRANSFERRED_BYTES = 0
+    def post_endpoint(self, endpoint: str, json: JSON, *check_present: str, **check_expected: Any) -> Any:
+        response = super().post(
+            urljoin('https://studio.youtube.com/youtubei/v1/', endpoint),
+            json=json
+        ).json()
+        return self.check_response(endpoint, response, *check_present, **check_expected)
 
-        uploaded = await self.session.post(upload_url,  headers={
-            "Content-Type": "application/x-www-form-urlencoded;charset=utf-8'",
-            "x-goog-upload-command": "upload, finalize",
-            "x-goog-upload-file-name": f"file-{round(time.time())}",
-            "x-goog-upload-offset": "0",
-            "Referer": self.YT_STUDIO_URL,
-        }, data=self.fileSender(file_path), timeout=None)
-        _ = await uploaded.text("utf-8")
-        _ = json.loads(_)
-        return _['scottyResourceId']
+    def list_endpoint(self, endpoint_type: str, template: MutableMapping[str, Any], page_size: int, **masks: MASK) -> ANY_TUPLE:
+        template.update(
+            mask=masks,
+            pageSize=page_size
+        )
+        endpoint = f'creator/list_creator_{endpoint_type}'
+        list = self.post_endpoint(endpoint, template, endpoint_type)
+        return tuple(self.check_response(endpoint, element, *masks) for element in list)
 
-    async def uploadVideo(self, file_name, title=f"New Video {round(time.time())}", description='This video uploaded by github.com/yusufusta/ytstudio', privacy='PRIVATE', draft=False, progress=None, extra_fields={}):
-        """
+    def list_playlists(self, page_size: int, **masks: MASK) -> ANY_TUPLE:
+        '''
+        Returns a list of playlists in your channel. Max page size is 500. Returns a tuple with items in the order specified by masks.
+        '''
+        return self.list_endpoint('playlists', LIST_PLAYLISTS, page_size, **masks)
+
+    def list_videos(self, page_size: int, **masks: MASK) -> ANY_TUPLE:
+        '''
+        Returns a list of videos in your channel. Returns a tuple with items in the order specified by masks.
+        '''
+        return self.list_endpoint('videos', LIST_VIDEOS, page_size, **masks)
+
+    def upload_file_to_youtube(self, url: bytes | str, file: FileDescriptorOrPath) -> None:
+        with open(file, 'rb') as fp, tqdm(total=getsize(file), unit_scale=True) as pbar:
+            data: SupportsRead[bytes] = CallbackIOWrapper(pbar.update, fp)  # type: ignore
+            response = self.post(
+                url,
+                data,
+                headers={
+                    'x-goog-upload-command': 'upload, finalize',
+                    'x-goog-upload-offset': '0'
+                }
+            ).json()
+            self.check_response('initialize upload (step 2)', response, status='STATUS_SUCCESS')
+
+    def upload_video(
+        self,
+        file: FileDescriptorOrPath,
+        title: str | None = None,
+        description: str | None = None,
+        privacy: Privacy | None = None,
+        draft: bool | None = None,
+        **extra_fields: Any
+    ) -> str:
+        '''
         Uploads a video to youtube.
-        """
-        self.progress = progress
-        frontEndUID = f"innertube_studio:{self.generateHash()}:0"
+        '''
+        frontend_upload_id = f'innertube_studio:{uuid4()}:0'
 
-        uploadRequest = await self.session.post("https://upload.youtube.com/upload/studio",
-                                                headers={
-                                                    "Content-Type": "application/x-www-form-urlencoded;charset=utf-8'",
-                                                    "x-goog-upload-command": "start",
-                                                    "x-goog-upload-file-name": f"file-{round(time.time())}",
-                                                    "x-goog-upload-protocol": "resumable",
-                                                    "Referer": self.YT_STUDIO_URL,
-                                                },
-                                                json={'frontendUploadId': frontEndUID})
-
-        uploadUrl = uploadRequest.headers.get("x-goog-upload-url")
-        scottyResourceId = await self.uploadFileToYoutube(uploadUrl, file_name)
-        _data = self.templates.UPLOAD_VIDEO
-        _data["resourceId"]["scottyResourceId"]["id"] = scottyResourceId
-        _data["frontendUploadId"] = frontEndUID
-        _data["initialMetadata"] = {
-            "title": {
-                "newTitle": title
+        upload_request = self.post(
+            'https://upload.youtube.com/upload/studio',
+            headers={
+                'x-goog-upload-command': 'start',
+                'x-goog-upload-protocol': 'resumable'
             },
-            "description": {
-                "newDescription": description,
-                "shouldSegment": True
-            },
-            "privacy": {
-                "newPrivacy": privacy
-            },
-            "draftState": {
-                "isDraft": draft
-            },
-        }
-        _data["initialMetadata"].update(extra_fields)
-
-        upload = await self.session.post(
-            f"https://studio.youtube.com/youtubei/v1/upload/createvideo?alt=json&key={self.config['INNERTUBE_API_KEY']}",
-            json=_data
+            json=dict(frontendUploadId=frontend_upload_id)
         )
+        scotty_resource_id, url = self.check_response('initialize upload (step 1)', upload_request.headers, 'X-Goog-Upload-Header-Scotty-Resource-Id', 'x-goog-upload-url')
 
-        return await upload.json()
+        self.upload_file_to_youtube(url, file)
 
-    async def deleteVideo(self, video_id):
-        """
-        Delete video from your channel
-        """
-        self.templates.setVideoId(video_id)
-        delete = await self.session.post(
-            f"https://studio.youtube.com/youtubei/v1/video/delete?alt=json&key={self.config['INNERTUBE_API_KEY']}",
-            json=self.templates.DELETE_VIDEO
+        UPLOAD_VIDEO.update(
+            frontendUploadId=frontend_upload_id,
+            initialMetadata=dict(
+                description=dict(newDescription=description),
+                draftState=dict(isDraft=draft),
+                title=dict(newTitle=title),
+                privacy=dict(newPrivacy=privacy)
+            ),
+            resourceId=dict(scottyResourceId=dict(id=scotty_resource_id)),
+            **extra_fields
         )
-        return await delete.json()
+        videoId = self.post_endpoint('upload/createvideo', UPLOAD_VIDEO, 'videoId')
 
-    async def listVideos(self):
-        """
-        Returns a list of videos in your channel
-        """
-        list = await self.session.post(
-            f"https://studio.youtube.com/youtubei/v1/creator/list_creator_videos?alt=json&key={self.config['INNERTUBE_API_KEY']}",
-            json=self.templates.LIST_VIDEOS
-        )
-        return await list.json()
+        return videoId
 
-    async def getVideo(self, video_id):
-        """
+    def delete_video(self, video_id: str) -> NotImplementedError:
+        '''
+        Delete video from your channel.
+        '''
+        return NotImplementedError()  # TODO
+
+    def get_video(self, video_id: str) -> NotImplementedError:
+        '''
         Get video data.
-        """
-        self.templates.setVideoId(video_id)
-        video = await self.session.post(
-            f"https://studio.youtube.com/youtubei/v1/creator/get_creator_videos?alt=json&key={self.config['INNERTUBE_API_KEY']}",
-            json=self.templates.GET_VIDEO
-        )
-        return await video.json()
+        '''
+        return NotImplementedError()  # TODO
 
-    async def createPlaylist(self, title, privacy="PUBLIC") -> dict:
-        """
+    def create_playlist(self, title: str, privacy: Privacy | None = None) -> str:
+        '''
         Create a new playlist.
-        """
-        _data = self.templates.CREATE_PLAYLIST
-        _data["title"] = title
-        _data["privacyStatus"] = privacy
-
-        create = await self.session.post(
-            f"https://studio.youtube.com/youtubei/v1/playlist/create?alt=json&key={self.config['INNERTUBE_API_KEY']}",
-            json=_data
+        '''
+        CREATE_PLAYLIST.update(
+            privacyStatus=privacy,
+            title=title
         )
-        return await create.json()
+        playlist_id = self.post_endpoint('playlist/create', CREATE_PLAYLIST, 'playlistId')
+        return playlist_id
 
-    async def editVideo(self, video_id, title: str = "", description: str = "", privacy: str = "", thumb: typing.Union[str, pathlib.Path, os.PathLike] = "", tags: typing.List[str] = [], category: int = -1, monetization: bool = True, playlist: typing.List[str] = [], removeFromPlaylist: typing.List[str] = []):
-        """
+    def edit_video(
+            self,
+            video_id: str,
+            category_id: int | None = None,
+            allow_comments: bool | None = None,
+            allow_comments_mode: AllowCommentsMode | None = None,
+            can_view_ratings: bool | None = None,
+            default_sort_order: DefaultSortOrder | None = None,
+            description: str | None = None,
+            monetization: bool | None = None,
+            privacy: str | None = None,
+            tags: list[str] | None = None,
+            title: str | None = None,
+            videoStill: FileDescriptorOrPath | int | None = None,
+            add_to_playlist_ids: list[str] | None = None,
+            delete_from_playlist_ids: list[str] | None = None,
+            scheduled_time: datetime | None = None,
+            **extra_fields: Any
+    ) -> None:
+        '''
         Edit video metadata.
-        """
-        self.templates.setVideoId(video_id)
-        _data = self.templates.METADATA_UPDATE
-        if title != "":
-            _title = self.templates.METADATA_UPDATE_TITLE
-            _title["title"]["newTitle"] = title
-            _data.update(_title)
-
-        if description != "":
-            _description = self.templates.METADATA_UPDATE_DESCRIPTION
-            _description["description"]["newDescription"] = description
-            _data.update(_description)
-
-        if privacy != "":
-            _privacy = self.templates.METADATA_UPDATE_PRIVACY
-            _privacy["privacy"]["newPrivacy"] = privacy
-            _data.update(_privacy)
-
-        if thumb != "":
-            _thumb = self.templates.METADATA_UPDATE_THUMB
-            image = open(thumb, 'rb')
-            image_64_encode = base64.b64encode(image.read()).decode('utf-8')
-
-            _thumb["videoStill"]["image"][
-                "dataUri"] = f"data:image/png;base64,{image_64_encode}"
-            _data.update(_thumb)
-
-        if len(tags) > 0:
-            _tags = self.templates.METADATA_UPDATE_TAGS
-            _tags["tags"]["newTags"] = tags
-            _data.update(_tags)
-
-        if category != -1:
-            _category = self.templates.METADATA_UPDATE_CATEGORY
-            _category["category"]["newCategoryId"] = category
-            _data.update(_category)
-
-        if len(playlist) > 0:
-            _playlist = self.templates.METADATA_UPDATE_PLAYLIST
-            _playlist["addToPlaylist"]["addToPlaylistIds"] = playlist
-            if len(removeFromPlaylist) > 0:
-                _playlist["addToPlaylist"]["deleteFromPlaylistIds"] = removeFromPlaylist
-            _data.update(_playlist)
-
-        if len(removeFromPlaylist) > 0:
-            _playlist = self.templates.METADATA_UPDATE_PLAYLIST
-            _playlist["addToPlaylist"]["deleteFromPlaylistIds"] = removeFromPlaylist
-            _data.update(_playlist)
-
-        _monetization = self.templates.METADATA_UPDATE_MONETIZATION
-        _monetization["monetizationSettings"]["newMonetization"] = monetization
-        _data.update(_monetization)
-
-        update = await self.session.post(
-            f"https://studio.youtube.com/youtubei/v1/video_manager/metadata_update?alt=json&key={self.config['INNERTUBE_API_KEY']}",
-            json=_data
+        '''
+        data: dict[str, Any] = dict(
+            encryptedVideoId=video_id,
+            addToPlaylist=dict(
+                addToPlaylistIds=add_to_playlist_ids,
+                deleteFromPlaylistIds=delete_from_playlist_ids
+            ),
+            commentOptions=dict(
+                newAllowComments=allow_comments,
+                newAllowCommentsMode=allow_comments_mode,
+                newCanViewRatings=can_view_ratings,
+                newDefaultSortOrder=default_sort_order
+            ),
+            privacy=dict(newPrivacy=privacy),
+            **METADATA_UPDATE,
+            **extra_fields
         )
-        return await update.json()
 
-    async def scheduledUploadVideo(self, file_name, title="New Video", description='This video uploaded by github.com/yusufusta/ytstudio', now_privacy='PRIVATE', schedule_time: datetime.datetime | int = 0, scheduled_privacy="PUBLIC", progress=None, extra_fields={}):
-        """
-        Scheduled uploads a video to youtube.
-        """
-        upload = await self.uploadVideo(file_name, title, description, now_privacy, draft=True, progress=progress, extra_fields=extra_fields)
-        if not "videoId" in upload:
-            raise Exception(
-                "Video upload failed. Please check your cookies (specially SESSION_TOKEN)", upload)
+        if category_id:
+            data.update(category=dict(newCategoryId=category_id))
+        if description:
+            data.update(description=dict(newDescription=description))
+        if monetization:
+            data.update(monetizationSettings=dict(newMonetization=monetization))
+        if tags:
+            data.update(tags=dict(newTags=tags))
+        if title:
+            data.update(title=dict(newTitle=title))
+        if scheduled_time:
+            data.update(scheduledPublishing=dict(set=dict(
+                privacy=Privacy.PUBLIC,
+                timeSec=int(scheduled_time.timestamp())
+            )))
+        if isinstance(videoStill, int):
+            data.update(videoStill=dict(
+                operation='SET_AUTOGEN_STILL',
+                newStillId=videoStill
+            ))
+        elif videoStill:
+            with open(videoStill, 'rb') as fp:
+                image_64_encode = b64encode(fp.read()).decode()
+            data.update(videoStill=dict(
+                operation='UPLOAD_CUSTOM_THUMBNAIL',
+                image=dict(dataUri=f'data:image/png;base64,{image_64_encode}')
+            ))
 
-        self.templates.setVideoId(upload["videoId"])
-
-        _data = self.templates.METADATA_UPDATE
-        _schedule = self.templates.METADATA_UPDATE_SCHEDULE
-
-        if isinstance(schedule_time, datetime.datetime):
-            schedule_time = int(schedule_time.timestamp())
-        elif schedule_time == 0:
-            schedule_time = int(datetime.datetime.now().timestamp()) + 60
-
-        _schedule["scheduledPublishing"]["set"]["timeSec"] = schedule_time
-        _schedule["scheduledPublishing"]["set"]["privacy"] = scheduled_privacy
-        _schedule["privacyState"]["newPrivacy"] = now_privacy
-        _data.update(_schedule)
-
-        update = await self.session.post(
-            f"https://studio.youtube.com/youtubei/v1/video_manager/metadata_update?alt=json&key={self.config['INNERTUBE_API_KEY']}",
-            json=_data
-        )
-        up = await update.json()
-        return upload, up
+        self.post_endpoint('video_manager/metadata_update', data, overallResult=METADATA_SUCCESS)
