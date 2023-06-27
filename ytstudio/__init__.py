@@ -21,8 +21,7 @@ from tqdm.utils import CallbackIOWrapper
 
 from .templates import (CREATE_PLAYLIST, LIST_PLAYLISTS, LIST_VIDEOS,
                         METADATA_UPDATE, UPLOAD_VIDEO, generate)
-from .typing import (ANY_TUPLE, JSON, MASK, AllowCommentsMode,
-                     DefaultSortOrder, Privacy)
+from .typing import (ANY_TUPLE, JSON, MASK, OPT_BOOL, OPT_LIST_STR, OPT_VISIBILITY, OPT_STR, Visibility)
 
 if TYPE_CHECKING:
     from _typeshed import (FileDescriptorOrPath, SupportsKeysAndGetItem,
@@ -142,10 +141,10 @@ class Studio(Session):
     def upload_video(
         self,
         file: FileDescriptorOrPath,
-        title: str | None = None,
-        description: str | None = None,
-        privacy: Privacy | None = None,
-        draft: bool | None = None,
+        title: OPT_STR = None,
+        description: OPT_STR = None,
+        visibiility: OPT_VISIBILITY = None,
+        draft: OPT_BOOL = None,
         **extra_fields: Any
     ) -> str:
         '''
@@ -171,7 +170,7 @@ class Studio(Session):
                 description=dict(newDescription=description),
                 draftState=dict(isDraft=draft),
                 title=dict(newTitle=title),
-                privacy=dict(newPrivacy=privacy)
+                privacy=dict(newPrivacy=visibiility)
             ),
             resourceId=dict(scottyResourceId=dict(id=scotty_resource_id)),
             **extra_fields
@@ -192,34 +191,27 @@ class Studio(Session):
         '''
         return NotImplementedError()  # TODO
 
-    def create_playlist(self, title: str, privacy: Privacy | None = None) -> str:
+    def create_playlist(self, title: str, visibility: OPT_VISIBILITY = None) -> str:
         '''
         Create a new playlist.
         '''
         CREATE_PLAYLIST.update(
-            privacyStatus=privacy,
+            privacyStatus=visibility,
             title=title
         )
-        playlist_id = self.post_endpoint('playlist/create', CREATE_PLAYLIST, 'playlistId')
-        return playlist_id
+        return self.post_endpoint('playlist/create', CREATE_PLAYLIST, 'playlistId')
 
     def edit_video(
             self,
             video_id: str,
-            category_id: int | None = None,
-            allow_comments: bool | None = None,
-            allow_comments_mode: AllowCommentsMode | None = None,
-            can_view_ratings: bool | None = None,
-            default_sort_order: DefaultSortOrder | None = None,
-            description: str | None = None,
-            monetization: bool | None = None,
-            privacy: str | None = None,
-            tags: list[str] | None = None,
-            title: str | None = None,
-            videoStill: FileDescriptorOrPath | int | None = None,
-            add_to_playlist_ids: list[str] | None = None,
-            delete_from_playlist_ids: list[str] | None = None,
-            scheduled_time: datetime | None = None,
+            title: OPT_STR = None,
+            description: OPT_STR = None,
+            thumbnail: FileDescriptorOrPath | int | None = None,
+            add_to_playlist_ids: OPT_LIST_STR = None,
+            delete_from_playlist_ids: OPT_LIST_STR = None,
+            visibility: datetime | OPT_VISIBILITY = None,
+            made_for_kids: OPT_BOOL = None,
+            restrict_video: OPT_BOOL = None,
             **extra_fields: Any
     ) -> None:
         '''
@@ -231,43 +223,43 @@ class Studio(Session):
                 addToPlaylistIds=add_to_playlist_ids,
                 deleteFromPlaylistIds=delete_from_playlist_ids
             ),
-            commentOptions=dict(
-                newAllowComments=allow_comments,
-                newAllowCommentsMode=allow_comments_mode,
-                newCanViewRatings=can_view_ratings,
-                newDefaultSortOrder=default_sort_order
-            ),
-            privacy=dict(newPrivacy=privacy),
             **METADATA_UPDATE,
             **extra_fields
         )
-
-        if category_id:
-            data.update(category=dict(newCategoryId=category_id))
-        if description:
-            data.update(description=dict(newDescription=description))
-        if monetization:
-            data.update(monetizationSettings=dict(newMonetization=monetization))
-        if tags:
-            data.update(tags=dict(newTags=tags))
         if title:
             data.update(title=dict(newTitle=title))
-        if scheduled_time:
-            data.update(scheduledPublishing=dict(set=dict(
-                privacy=Privacy.PUBLIC,
-                timeSec=int(scheduled_time.timestamp())
-            )))
-        if isinstance(videoStill, int):
+        if description:
+            data.update(description=dict(newDescription=description))
+        if isinstance(thumbnail, int):
             data.update(videoStill=dict(
                 operation='SET_AUTOGEN_STILL',
-                newStillId=videoStill
+                newStillId=thumbnail
             ))
-        elif videoStill:
-            with open(videoStill, 'rb') as fp:
+        elif thumbnail:
+            if getsize(thumbnail) > 2097152:
+                print(f'{thumbnail} is greater than 2 MB. Upload will likely fail!')
+            with open(thumbnail, 'rb') as fp:
                 image_64_encode = b64encode(fp.read()).decode()
             data.update(videoStill=dict(
                 operation='UPLOAD_CUSTOM_THUMBNAIL',
                 image=dict(dataUri=f'data:image/png;base64,{image_64_encode}')
+            ))
+        if isinstance(visibility, datetime):
+            data.update(scheduledPublishing=dict(set=dict(
+                privacy=Visibility.PUBLIC,
+                timeSec=int(visibility.timestamp())
+            )))
+        else:
+            data.update(privacy=dict(newPrivacy=visibility))
+        if made_for_kids is not None:
+            data.update(madeForKids=dict(
+                operation='MDE_MADE_FOR_KIDS_UPDATE_OPERATION_SET',
+                newMfk=f'MDE_MADE_FOR_KIDS_TYPE_{"" if made_for_kids else "NOT_"}MFK'
+            ))
+        if restrict_video is not None:
+            data.update(racy=dict(
+                operation='MDE_RACY_UPDATE_OPERATION_SET',
+                newRacy=f'MDE_RACY_TYPE_{"" if restrict_video else "NOT_"}RESTRICTED'
             ))
 
         self.post_endpoint('video_manager/metadata_update', data, overallResult=METADATA_SUCCESS)
