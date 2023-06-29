@@ -6,7 +6,6 @@ from hashlib import sha1
 from http.cookiejar import CookieJar
 from operator import itemgetter
 from os.path import getsize
-from pprint import pprint
 from time import time
 from typing import TYPE_CHECKING, Any, Iterable, MutableMapping, cast
 from urllib.parse import urljoin
@@ -21,7 +20,8 @@ from tqdm.utils import CallbackIOWrapper
 
 from .templates import (CREATE_PLAYLIST, LIST_PLAYLISTS, LIST_VIDEOS,
                         METADATA_UPDATE, UPLOAD_VIDEO, generate)
-from .typing import (ANY_TUPLE, JSON, MASK, OPT_BOOL, OPT_LIST_STR, OPT_VISIBILITY, OPT_STR, Visibility)
+from .typing import (ANY_TUPLE, JSON, MASK, OPT_BOOL, OPT_LIST_STR, OPT_STR,
+                     OPT_VISIBILITY, Visibility)
 
 if TYPE_CHECKING:
     from _typeshed import (FileDescriptorOrPath, SupportsKeysAndGetItem,
@@ -93,8 +93,7 @@ class Studio(Session):
             if check_present:
                 return itemgetter(*check_present)(response)
         except KeyError:
-            pprint(response)
-            raise Exception(f'Failed: {name}!')
+            raise KeyError(f'Failed: {name}!', response)
 
     def post_endpoint(self, endpoint: str, json: JSON, *check_present: str, **check_expected: Any) -> Any:
         response = super().post(
