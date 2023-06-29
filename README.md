@@ -26,7 +26,7 @@ For now, you can install with PIP.
     - Ability to add custom fields to support changes in the API and more advanced options.
 - [Deleting Video](examples/delete_video.py) (not implemented yet)
 - [Edit Video](examples/edit_video.py) (includes scheduling uploads)
-    - Easy to use fields for every option that is editable in browser before pressing 'SHOW MORE'. This is mainly due to how many fields there are the variations within.
+    - Easy to use fields for every option that is editable in browser before pressing 'SHOW MORE'. This is mainly due to how many fields there are and the variations therein.
     - Ability to add custom fields to support changes in the API and more advanced options.
 - [Get Video](examples/get_video.py) (not implemented yet)
 
@@ -46,16 +46,14 @@ Also you need SESSION_TOKEN for (upload/edit/delete) video. [How to get Session 
 - [ ] Implement Studio.delete_video()
 - [ ] Implement Studio.get_video()
 - [ ] Implement for Studio.list_playlists() and Studio.list_videos():
-    - [ ] Allow string for visibility
     - [ ] Better method for specifying masks?
     - [ ] Paging support
     - [ ] Listing order
 - [ ] Implement for Studio.upload_video():
-    - [ ] Allow string for visibility
+    - [ ] Make progress monitoring the user's responsibility to reduce dependencies and increase flexibility of specifying upload data and the actual way progress is monitored
 - [ ] Implement for Studio.edit_video():
     - [ ] Set as Premiere
-    - [ ] Allow int for scheduled publishing
-    - [ ] Allow string for visibility
+    - [ ] Better method for specifying extra fields?
     - [ ] Subtitles?
     - [ ] End Screens?
     - [ ] Cards?
