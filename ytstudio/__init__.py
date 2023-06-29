@@ -208,7 +208,7 @@ class Studio(Session):
             thumbnail: FileDescriptorOrPath | int | None = None,
             add_to_playlist_ids: OPT_LIST_STR = None,
             delete_from_playlist_ids: OPT_LIST_STR = None,
-            visibility: datetime | OPT_VISIBILITY = None,
+            visibility: datetime | int | OPT_VISIBILITY = None,
             made_for_kids: OPT_BOOL = None,
             restrict_video: OPT_BOOL = None,
             **extra_fields: Any
@@ -225,10 +225,12 @@ class Studio(Session):
             **METADATA_UPDATE,
             **extra_fields
         )
+
         if title:
             data.update(title=dict(newTitle=title))
         if description:
             data.update(description=dict(newDescription=description))
+
         if isinstance(thumbnail, int):
             data.update(videoStill=dict(
                 operation='SET_AUTOGEN_STILL',
@@ -243,14 +245,18 @@ class Studio(Session):
                 operation='UPLOAD_CUSTOM_THUMBNAIL',
                 image=dict(dataUri=f'data:image/png;base64,{image_64_encode}')
             ))
+
         if isinstance(visibility, datetime):
+            visibility = int(visibility.timestamp())
+        if isinstance(visibility, int):
             data.update(scheduledPublishing=dict(set=dict(
                 privacy=Visibility.PUBLIC,
-                timeSec=int(visibility.timestamp())
+                timeSec=visibility
             )))
             visibility = Visibility.PRIVATE
         if visibility:
             data.update(privacy=dict(newPrivacy=visibility))
+
         if made_for_kids is not None:
             data.update(madeForKids=dict(
                 operation='MDE_MADE_FOR_KIDS_UPDATE_OPERATION_SET',
