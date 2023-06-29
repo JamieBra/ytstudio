@@ -248,7 +248,8 @@ class Studio(Session):
                 privacy=Visibility.PUBLIC,
                 timeSec=int(visibility.timestamp())
             )))
-        else:
+            visibility = Visibility.PRIVATE
+        if visibility:
             data.update(privacy=dict(newPrivacy=visibility))
         if made_for_kids is not None:
             data.update(madeForKids=dict(
