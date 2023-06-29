@@ -36,8 +36,6 @@ You need cookies for login. Use an cookie manager([EditThisCookie](https://chrom
 
 Also you need SESSION_TOKEN for (upload/edit/delete) video. [How to get Session Token?](https://github.com/adasq/youtube-studio#preparing-authentication)
 
-Use this [example](examples/Studio.py) for setting up the Studio object!
-
 ## TO-DO
 
 - [ ] Better documentation
@@ -45,14 +43,19 @@ Use this [example](examples/Studio.py) for setting up the Studio object!
 - [ ] Update examples
 - [ ] Create PIP package
 - [ ] Allow session token to passed in with cookies
+- [ ] Implement Studio.delete_video()
+- [ ] Implement Studio.get_video()
 - [ ] Implement for Studio.list_playlists() and Studio.list_videos():
+    - [ ] Allow string for visibility
     - [ ] Better method for specifying masks?
     - [ ] Paging support
     - [ ] Listing order
-- [ ] Implement Studio.delete_video()
-- [ ] Implement Studio.get_video()
+- [ ] Implement for Studio.upload_video():
+    - [ ] Allow string for visibility
 - [ ] Implement for Studio.edit_video():
     - [ ] Set as Premiere
+    - [ ] Allow int for scheduled publishing
+    - [ ] Allow string for visibility
     - [ ] Subtitles?
     - [ ] End Screens?
     - [ ] Cards?
