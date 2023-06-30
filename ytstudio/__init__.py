@@ -35,14 +35,14 @@ class Studio(Session):
     def __init__(
             self,
             cookies: CookieJar | Iterable[tuple[str, str]] | SupportsKeysAndGetItem[str, str],
-            session_token: str,
+            session_token: str = '',
             login: bool = True
     ) -> None:
         super().__init__()
         self.cookies.update(  # type: ignore
             cookies
         )
-        self.session_token = session_token
+        self.session_token = session_token or cast(str, self.cookies['SESSION_TOKEN'])
 
         sapisid = cast(str, self.cookies['SAPISID'])
         sapisid_hash = self.generate_sapisis_hash(sapisid)

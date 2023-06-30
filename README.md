@@ -42,7 +42,7 @@ Also you need SESSION_TOKEN for (upload/edit/delete) video. [How to get Session 
 - [ ] Better tests
 - [ ] Update examples
 - [ ] Create PIP package
-- [ ] Allow session token to passed in with cookies
+- [ ] Find session token automatically from cookies
 - [ ] Implement Studio.delete_video()
 - [ ] Implement Studio.get_video()
 - [ ] Implement for Studio.list_playlists() and Studio.list_videos():
