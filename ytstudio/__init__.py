@@ -35,7 +35,8 @@ class Studio(Session):
     def __init__(
             self,
             cookies: CookieJar | Iterable[tuple[str, str]] | SupportsKeysAndGetItem[str, str],
-            session_token: str
+            session_token: str,
+            login: bool = True
     ) -> None:
         super().__init__()
         self.cookies.update(  # type: ignore
@@ -56,21 +57,20 @@ class Studio(Session):
             'var window = {ytcfg: {}};'
         )
 
+        if login:
+            self.login()
+
     def generate_sapisis_hash(self, sapisid: str) -> str:
         current_time = round(time())
         hash = f'{current_time} {sapisid} {YT_STUDIO_URL}'
         sifrelenmis = sha1(hash.encode()).hexdigest()
         return f'{current_time}_{sifrelenmis}'
 
-    def get_main_page(self) -> str:
-        page = self.get(YT_STUDIO_URL)
-        return page.text
-
     def login(self) -> None:
         '''
         Login to your youtube account
         '''
-        page = self.get_main_page()
+        page = self.get(YT_STUDIO_URL).text
         query = PyQuery(page)
         script = query('script')
         if len(script) < 1:

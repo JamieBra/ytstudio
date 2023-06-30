@@ -10,8 +10,6 @@ with open('token') as fp:
     token = fp.read()
 
 with Studio(jar, token) as studio:
-    studio.login()
-
     # get 10 videos, but do not retrieve any attributes
     videos = studio.list_videos(10)
     pprint(videos)

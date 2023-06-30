@@ -10,8 +10,6 @@ with open('token') as fp:
     token = fp.read()
 
 with Studio(jar, token) as studio:
-    studio.login()
-
     # update every built-in option and some extra ones
     studio.edit_video(
         'aaaaaaaa',  # video ID
