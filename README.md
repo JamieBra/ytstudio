@@ -14,10 +14,10 @@ For now, you can install with PIP.
 
 - Fully typed!
 - Names reflecting the official Youtube GUI in browser!
-- [List Videos](examples/list_playlists.py)
+- [List Playlists](examples/list_playlists.py)
     - Specify page size.
     - Specify what attributes to retrieve.
-- [List Playlists](examples/list_videos.py)
+- [List Videos](examples/list_videos.py)
     - Specify page size.
     - Specify what attributes to retrieve.
 - [Uploading Video](examples/upload_video.py) (**NOT LIMITED** - official API's videos.insert charges you 1600 quota units)
