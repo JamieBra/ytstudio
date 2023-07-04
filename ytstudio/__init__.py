@@ -14,9 +14,7 @@ from uuid import uuid4
 from js2py import EvalJs  # type: ignore
 from lxml.html import HtmlElement  # type: ignore
 from pyquery import PyQuery  # type: ignore
-from requests import Session
-from tqdm import tqdm
-from tqdm.utils import CallbackIOWrapper
+from requests import Session, sessions
 
 from .templates import (CREATE_PLAYLIST, LIST_PLAYLISTS, LIST_VIDEOS,
                         METADATA_UPDATE, UPLOAD_VIDEO, generate)
@@ -24,8 +22,7 @@ from .typing import (ANY_TUPLE, JSON, MASK, OPT_BOOL, OPT_LIST_STR, OPT_STR,
                      OPT_VISIBILITY, Visibility)
 
 if TYPE_CHECKING:
-    from _typeshed import (FileDescriptorOrPath, SupportsKeysAndGetItem,
-                           SupportsRead)
+    from _typeshed import FileDescriptorOrPath, SupportsKeysAndGetItem
 
 METADATA_SUCCESS = dict(resultCode='UPDATE_SUCCESS')
 YT_STUDIO_URL = 'https://studio.youtube.com'
@@ -123,25 +120,12 @@ class Studio(Session):
         '''
         return self.list_endpoint('videos', LIST_VIDEOS, page_size, **masks)
 
-    def upload_file_to_youtube(self, url: bytes | str, file: FileDescriptorOrPath) -> None:
-        with open(file, 'rb') as fp, tqdm(total=getsize(file), unit_scale=True) as pbar:
-            data: SupportsRead[bytes] = CallbackIOWrapper(pbar.update, fp)  # type: ignore
-            response = self.post(
-                url,
-                data,
-                headers={
-                    'x-goog-upload-command': 'upload, finalize',
-                    'x-goog-upload-offset': '0'
-                }
-            ).json()
-            self.check_response('initialize upload (step 2)', response, status='STATUS_SUCCESS')
-
     def upload_video(
         self,
-        file: FileDescriptorOrPath,
+        data: sessions._Data,  # type: ignore
         title: OPT_STR = None,
         description: OPT_STR = None,
-        visibiility: OPT_VISIBILITY = None,
+        visibility: OPT_VISIBILITY = None,
         draft: OPT_BOOL = None,
         **extra_fields: Any
     ) -> str:
@@ -160,7 +144,15 @@ class Studio(Session):
         )
         scotty_resource_id, url = self.check_response('initialize upload (step 1)', upload_request.headers, 'X-Goog-Upload-Header-Scotty-Resource-Id', 'x-goog-upload-url')
 
-        self.upload_file_to_youtube(url, file)
+        response = self.post(
+            url,
+            data,
+            headers={
+                'x-goog-upload-command': 'upload, finalize',
+                'x-goog-upload-offset': '0'
+            }
+        ).json()
+        self.check_response('initialize upload (step 2)', response, status='STATUS_SUCCESS')
 
         UPLOAD_VIDEO.update(
             frontendUploadId=frontend_upload_id,
@@ -168,7 +160,7 @@ class Studio(Session):
                 description=dict(newDescription=description),
                 draftState=dict(isDraft=draft),
                 title=dict(newTitle=title),
-                privacy=dict(newPrivacy=visibiility)
+                privacy=dict(newPrivacy=visibility)
             ),
             resourceId=dict(scottyResourceId=dict(id=scotty_resource_id)),
             **extra_fields
