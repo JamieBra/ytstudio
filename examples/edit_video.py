@@ -23,7 +23,10 @@ with Studio(jar, token) as studio:
         True,  # restrict to 18+
 
         category=dict(newCategoryId=22),  # category
-        monetizationSettings=dict(newMonetization=True),  # monetization
+        monetizationSettings=dict(
+            newMonetization=True,
+            newMonetizeWithAds=True
+        ),  # monetization
         tags=dict(newTags=['test', 'test2'])  # tags
     )
 
