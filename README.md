@@ -21,9 +21,9 @@ For now, you can install with PIP.
     - Specify page size.
     - Specify what attributes to retrieve.
 - [Uploading Video](examples/upload_video.py) (**NOT LIMITED** - official API's videos.insert charges you 1600 quota units)
-    - Built-in progress bar.
-    - Specify default fields.
+    - Ability to upload arbitrary data.
     - Ability to add custom fields to support changes in the API and more advanced options.
+    - Specify default fields.
 - [Deleting Video](examples/delete_video.py) (not implemented yet)
 - [Edit Video](examples/edit_video.py) (includes scheduling uploads)
     - Easy to use fields for every option that is editable in browser before pressing 'SHOW MORE'. This is mainly due to how many fields there are and the variations therein.
@@ -43,14 +43,13 @@ Also you need SESSION_TOKEN for (upload/edit/delete) video. [How to get Session 
 - [ ] Update examples
 - [ ] Create PIP package
 - [ ] Find session token automatically from cookies
+- [ ] Update to be asynchronous again
 - [ ] Implement Studio.delete_video()
 - [ ] Implement Studio.get_video()
 - [ ] Implement for Studio.list_playlists() and Studio.list_videos():
     - [ ] Better method for specifying masks?
     - [ ] Paging support
     - [ ] Listing order
-- [ ] Implement for Studio.upload_video():
-    - [ ] Make progress monitoring the user's responsibility to reduce dependencies and increase flexibility of specifying upload data and the actual way progress is monitored
 - [ ] Implement for Studio.edit_video():
     - [ ] Set as Premiere
     - [ ] Better method for specifying extra fields?
