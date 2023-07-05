@@ -1,15 +1,13 @@
 from datetime import datetime, timedelta
-from http.cookiejar import MozillaCookieJar
+from json import load
 
 from ytstudio.ytstudio import Studio
 from ytstudio.ytstudio.typing import Visibility
 
-jar = MozillaCookieJar('cookies.txt')
-jar.load()
-with open('token') as fp:
-    token = fp.read()
+with open('login.json') as fp:
+    cookies = load(fp)
 
-with Studio(jar, token) as studio:
+with Studio(cookies) as studio:
     # update every built-in option and some extra ones
     studio.edit_video(
         'aaaaaaaa',  # video ID

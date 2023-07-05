@@ -1,4 +1,4 @@
-from http.cookiejar import MozillaCookieJar
+from json import load
 from os.path import getsize
 from typing import TYPE_CHECKING, cast
 
@@ -11,13 +11,12 @@ from ytstudio.ytstudio.typing import Visibility
 if TYPE_CHECKING:
     from _typeshed import SupportsRead
 
-jar = MozillaCookieJar('cookies.txt')
-jar.load()
-with open('token') as fp:
-    token = fp.read()
-
 file = 'test_video.mp4'
-with Studio(jar, token) as studio:
+
+with open('login.json') as fp:
+    cookies = load(fp)
+
+with Studio(cookies) as studio:
     # upload file without progress bar and using default fields
     with open(file, 'rb') as data:  # open as byte stream to prevent entire file from being read into memory
         video_id = studio.upload_video(data)

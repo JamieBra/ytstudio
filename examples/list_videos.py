@@ -1,15 +1,13 @@
-from http.cookiejar import MozillaCookieJar
+from json import load
 from pprint import pprint
 
 from ytstudio.ytstudio import Studio
 from ytstudio.ytstudio.templates import ALL_TRUE
 
-jar = MozillaCookieJar('cookies.txt')
-jar.load()
-with open('token') as fp:
-    token = fp.read()
+with open('login.json') as fp:
+    cookies = load(fp)
 
-with Studio(jar, token) as studio:
+with Studio(cookies) as studio:
     # get 10 videos, but do not retrieve any attributes
     videos = studio.list_videos(10)
     pprint(videos)
