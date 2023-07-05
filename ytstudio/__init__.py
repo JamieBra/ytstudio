@@ -3,26 +3,25 @@ from __future__ import annotations
 from base64 import b64encode
 from datetime import datetime
 from hashlib import sha1
-from http.cookiejar import CookieJar
 from operator import itemgetter
 from os.path import getsize
 from time import time
-from typing import TYPE_CHECKING, Any, Iterable, MutableMapping, cast
-from urllib.parse import urljoin
+from typing import TYPE_CHECKING, Any, Mapping, MutableMapping, Self, cast
 from uuid import uuid4
 
+from httpx import Client
+from httpx._types import CookieTypes, RequestContent
 from js2py import EvalJs  # type: ignore
 from lxml.html import HtmlElement  # type: ignore
 from pyquery import PyQuery  # type: ignore
-from requests import Session, sessions
 
 from .templates import (CREATE_PLAYLIST, LIST_PLAYLISTS, LIST_VIDEOS,
                         METADATA_UPDATE, UPLOAD_VIDEO, generate)
-from .typing import (ANY_TUPLE, JSON, MASK, OPT_BOOL, OPT_LIST_STR,
-                     OPT_VISIBILITY, Visibility)
+from .typing import (ANY_TUPLE, MASK, OPT_BOOL, OPT_LIST_STR, OPT_VISIBILITY,
+                     Visibility)
 
 if TYPE_CHECKING:
-    from _typeshed import FileDescriptorOrPath, SupportsKeysAndGetItem
+    from _typeshed import FileDescriptorOrPath
 
 MAX_TITLE_LENGTH = 100
 MAX_DESCRIPTION_LENGTH = 5000
@@ -30,7 +29,7 @@ METADATA_SUCCESS = dict(resultCode='UPDATE_SUCCESS')
 YT_STUDIO_URL = 'https://studio.youtube.com'
 
 
-class Studio(Session):
+class Studio(Client):
     @staticmethod
     def validate_string(string: str, max_length: int) -> str:
         if len(string) > max_length:
@@ -41,33 +40,39 @@ class Studio(Session):
 
     def __init__(
             self,
-            cookies: CookieJar | Iterable[tuple[str, str]] | SupportsKeysAndGetItem[str, str],
+            cookies: CookieTypes,
             session_token: str = '',
             login: bool = True
     ) -> None:
-        super().__init__()
-        self.cookies.update(  # type: ignore
-            cookies
+        super().__init__(
+            headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+                'X-Origin': YT_STUDIO_URL
+            },
+            cookies=cookies,
+            http2=True,
+            base_url='https://studio.youtube.com/youtubei/v1/'
         )
-        self.session_token = session_token or cast(str, self.cookies['SESSION_TOKEN'])
 
-        sapisid = cast(str, self.cookies['SAPISID'])
-        sapisid_hash = self.generate_sapisis_hash(sapisid)
-        self.headers.update({
-            'Authorization': f'SAPISIDHASH {sapisid_hash}',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-            'X-Origin': YT_STUDIO_URL
-        })
+        sapisid_hash = self.generate_sapisid_hash()
+
+        self.auto_login = login
+        self.headers.update(dict(Authorization=f'SAPISIDHASH {sapisid_hash}'))
+        self.session_token = session_token or self.cookies['SESSION_TOKEN']
 
         self.js = EvalJs()
         self.js.execute(  # type: ignore
             'var window = {ytcfg: {}};'
         )
 
-        if login:
+    def __enter__(self) -> Self:
+        self = super().__enter__()
+        if self.auto_login:
             self.login()
+        return self
 
-    def generate_sapisis_hash(self, sapisid: str) -> str:
+    def generate_sapisid_hash(self) -> str:
+        sapisid = self.cookies['SAPISID']
         current_time = round(time())
         hash = f'{current_time} {sapisid} {YT_STUDIO_URL}'
         sifrelenmis = sha1(hash.encode()).hexdigest()
@@ -93,7 +98,7 @@ class Studio(Session):
             raise Exception('Unable to find CHANNEL_ID or DELEGATED_SESSION_ID. Can you check your cookies?')
         generate(self.session_token, channel_id, on_behalf_of_user)
 
-    def check_response(self, name: Any, response: JSON, *check_present: str, **check_expected: Any) -> Any:
+    def check_response(self, name: Any, response: Mapping[Any, Any], *check_present: Any, **check_expected: Any) -> Any:
         try:
             if not (check_expected.items() <= response.items()):
                 raise KeyError()
@@ -102,11 +107,8 @@ class Studio(Session):
         except KeyError:
             raise KeyError(f'Failed: {name}!', response)
 
-    def post_endpoint(self, endpoint: str, json: JSON, *check_present: str, **check_expected: Any) -> Any:
-        response = super().post(
-            urljoin('https://studio.youtube.com/youtubei/v1/', endpoint),
-            json=json
-        ).json()
+    def post_endpoint(self, endpoint: str, json: Any, *check_present: str, **check_expected: Any) -> Any:
+        response = super().post(endpoint, json=json).json()
         return self.check_response(endpoint, response, *check_present, **check_expected)
 
     def list_endpoint(self, endpoint_type: str, template: MutableMapping[str, Any], page_size: int, **masks: MASK) -> ANY_TUPLE:
@@ -132,7 +134,7 @@ class Studio(Session):
 
     def upload_video(
         self,
-        data: sessions._Data,  # type: ignore
+        content: RequestContent,
         title: str = '',
         description: str = '',
         visibility: OPT_VISIBILITY = None,
@@ -159,7 +161,7 @@ class Studio(Session):
 
         response = self.post(
             url,
-            data,
+            content=content,
             headers={
                 'x-goog-upload-command': 'upload, finalize',
                 'x-goog-upload-offset': '0'

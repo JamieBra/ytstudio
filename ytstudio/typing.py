@@ -1,5 +1,5 @@
 from enum import StrEnum, auto
-from typing import Any, Mapping
+from typing import Any
 
 
 class Visibility(StrEnum):
@@ -9,7 +9,6 @@ class Visibility(StrEnum):
 
 
 ANY_TUPLE = tuple[Any]
-JSON = Mapping[str, Any]
 MASK = bool | dict[str, bool]
 OPT_BOOL = bool | None
 OPT_LIST_STR = list[str] | None
