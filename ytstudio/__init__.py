@@ -18,17 +18,27 @@ from requests import Session, sessions
 
 from .templates import (CREATE_PLAYLIST, LIST_PLAYLISTS, LIST_VIDEOS,
                         METADATA_UPDATE, UPLOAD_VIDEO, generate)
-from .typing import (ANY_TUPLE, JSON, MASK, OPT_BOOL, OPT_LIST_STR, OPT_STR,
+from .typing import (ANY_TUPLE, JSON, MASK, OPT_BOOL, OPT_LIST_STR,
                      OPT_VISIBILITY, Visibility)
 
 if TYPE_CHECKING:
     from _typeshed import FileDescriptorOrPath, SupportsKeysAndGetItem
 
+MAX_TITLE_LENGTH = 100
+MAX_DESCRIPTION_LENGTH = 5000
 METADATA_SUCCESS = dict(resultCode='UPDATE_SUCCESS')
 YT_STUDIO_URL = 'https://studio.youtube.com'
 
 
 class Studio(Session):
+    @staticmethod
+    def validate_string(string: str, max_length: int) -> str:
+        if len(string) > max_length:
+            print(f'{string} is greater than {max_length} characters. This will likely fail!')
+        if '<' in string or '>' in string:
+            print(f'{string} contains "<" or ">". This will likely fail!')
+        return string
+
     def __init__(
             self,
             cookies: CookieJar | Iterable[tuple[str, str]] | SupportsKeysAndGetItem[str, str],
@@ -123,8 +133,8 @@ class Studio(Session):
     def upload_video(
         self,
         data: sessions._Data,  # type: ignore
-        title: OPT_STR = None,
-        description: OPT_STR = None,
+        title: str = '',
+        description: str = '',
         visibility: OPT_VISIBILITY = None,
         draft: OPT_BOOL = None,
         **extra_fields: Any
@@ -132,6 +142,9 @@ class Studio(Session):
         '''
         Uploads a video to youtube.
         '''
+        Studio.validate_string(title, MAX_TITLE_LENGTH)
+        Studio.validate_string(description, MAX_DESCRIPTION_LENGTH)
+
         frontend_upload_id = f'innertube_studio:{uuid4()}:0'
 
         upload_request = self.post(
@@ -194,8 +207,8 @@ class Studio(Session):
     def edit_video(
             self,
             video_id: str,
-            title: OPT_STR = None,
-            description: OPT_STR = None,
+            title: str = '',
+            description: str = '',
             thumbnail: FileDescriptorOrPath | int | None = None,
             add_to_playlist_ids: OPT_LIST_STR = None,
             delete_from_playlist_ids: OPT_LIST_STR = None,
@@ -217,9 +230,9 @@ class Studio(Session):
             **extra_fields
         )
 
-        if title:
+        if Studio.validate_string(title, MAX_TITLE_LENGTH):
             data.update(title=dict(newTitle=title))
-        if description:
+        if Studio.validate_string(description, MAX_DESCRIPTION_LENGTH):
             data.update(description=dict(newDescription=description))
 
         if isinstance(thumbnail, int):
@@ -229,7 +242,7 @@ class Studio(Session):
             ))
         elif thumbnail:
             if getsize(thumbnail) > 2097152:
-                print(f'{thumbnail} is greater than 2 MB. Upload will likely fail!')
+                print(f'{thumbnail} is greater than 2 MB. This will likely fail!')
             with open(thumbnail, 'rb') as fp:
                 image_64_encode = b64encode(fp.read()).decode()
             data.update(videoStill=dict(
