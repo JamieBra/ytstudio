@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 MAX_TITLE_LENGTH = 100
 MAX_DESCRIPTION_LENGTH = 5000
+MAX_PLAYLIST_TITLE_LENGTH = 150
 METADATA_SUCCESS = dict(resultCode='UPDATE_SUCCESS')
 YT_STUDIO_URL = 'https://studio.youtube.com'
 
@@ -202,7 +203,7 @@ class Studio(Client):
         '''
         CREATE_PLAYLIST.update(
             privacyStatus=visibility,
-            title=title
+            title=Studio.validate_string(title, MAX_PLAYLIST_TITLE_LENGTH)
         )
         return self.post_endpoint('playlist/create', CREATE_PLAYLIST, 'playlistId')
 
@@ -222,6 +223,7 @@ class Studio(Client):
         '''
         Edit video metadata.
         '''
+
         data: dict[str, Any] = dict(
             encryptedVideoId=video_id,
             addToPlaylist=dict(
