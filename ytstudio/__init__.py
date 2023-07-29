@@ -17,7 +17,7 @@ from pyquery import PyQuery  # type: ignore
 
 from .templates import (CREATE_PLAYLIST, LIST_PLAYLISTS, LIST_VIDEOS,
                         METADATA_UPDATE, UPLOAD_VIDEO, generate)
-from .typing import (ANY_TUPLE, MASK, OPT_BOOL, OPT_LIST_STR, OPT_VISIBILITY,
+from .typing import (ANY_TUPLE, MASK, OPT_BOOL, OPT_STR_ITER, OPT_VISIBILITY,
                      Visibility)
 
 if TYPE_CHECKING:
@@ -213,8 +213,8 @@ class Studio(Client):
             title: str = '',
             description: str = '',
             thumbnail: FileDescriptorOrPath | int | None = None,
-            add_to_playlist_ids: OPT_LIST_STR = None,
-            delete_from_playlist_ids: OPT_LIST_STR = None,
+            add_to_playlist_ids: OPT_STR_ITER = None,
+            delete_from_playlist_ids: OPT_STR_ITER = None,
             visibility: datetime | int | OPT_VISIBILITY = None,
             made_for_kids: OPT_BOOL = None,
             restrict_video: OPT_BOOL = None,

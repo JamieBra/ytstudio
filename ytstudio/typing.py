@@ -1,5 +1,5 @@
 from enum import StrEnum, auto
-from typing import Any
+from typing import Any, Iterable
 
 
 class Visibility(StrEnum):
@@ -11,5 +11,5 @@ class Visibility(StrEnum):
 ANY_TUPLE = tuple[Any]
 MASK = bool | dict[str, bool]
 OPT_BOOL = bool | None
-OPT_LIST_STR = list[str] | None
+OPT_STR_ITER = Iterable[str] | None
 OPT_VISIBILITY = str | Visibility | None
