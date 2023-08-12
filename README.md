@@ -16,28 +16,21 @@ For now, you can install with PIP.
 
 - Fully typed!
 - Names reflecting the official Youtube GUI in browser!
-- [List Playlists](examples/list_playlists.py)
+- [List Playlists/Videos](examples/list_items.py)
     - Automatic pagination.
     - Specify all or some number of the results.
     - Specify what attributes to retrieve.
-- [Get Playlist(s)](examples/get_playlists.py) (not implemented yet)
+- [Get Playlist(s)/Video(s)](examples/get_items.py) (playlists not implemented)
+    - Get any number of specific results by ID.
+    - Specify what attributes to retrieve.
 - [Create Playlist](examples/create_playlist.py)
     - Specify title and privacy setting.
-- [Delete Playlist](examples/delete_playlist.py) (not implemented yet)
-- [Edit Playlist](examples/edit_playlist.py) (not implemented yet)
-
-- [List Videos](examples/list_videos.py)
-    - Automatic pagination.
-    - Specify all or some number of the results.
-    - Specify what attributes to retrieve.
-- [Get Video(s)](examples/get_videos.py)
-    - Get any number of specific videos by ID.
-    - Specify what attributes to retrieve.
-- [Uploading Video](examples/upload_video.py) (**NOT LIMITED** - official API's videos.insert charges you 1600 quota units)
+- [Create Video](examples/create_video.py) (**NOT LIMITED** - official API's videos.insert charges you 1600 quota units)
     - Ability to upload arbitrary data.
     - Ability to add custom fields to support changes in the API and more advanced options.
     - Specify default fields.
-- [Deleting Video](examples/delete_video.py) (not implemented yet)
+- [Delete Playlist/Video](examples/delete_item.py) (not implemented yet)
+- [Edit Playlist](examples/edit_playlist.py) (not implemented yet)
 - [Edit Video](examples/edit_video.py) (includes scheduling uploads)
     - Easy to use fields for every option that is editable in browser before pressing 'SHOW MORE'. This is mainly due to how many fields there are and the variations therein.
     - Ability to add custom fields to support changes in the API and more advanced options.
@@ -53,11 +46,12 @@ Examples of how to create a Studio instance can be found [here](examples/create_
 ## TO-DO
 
 - [ ] Better documentation
+- [ ] Finish examples
 - [ ] Tests
 - [ ] Create PIP package
 - [ ] Find session token automatically from cookies / add OAuth flow
 - [ ] Implement missing functions
-- [ ] Implement for Studio.list_playlists() and Studio.list_videos():
+- [ ] Implement for listing functions:
     - [ ] Better method for specifying masks?
     - [ ] Listing order
 - [ ] Implement for Studio.edit_video():

@@ -7,7 +7,7 @@ from operator import itemgetter
 from os.path import getsize
 from sys import maxsize
 from time import sleep, time
-from typing import TYPE_CHECKING, Any, Mapping, Self, cast
+from typing import TYPE_CHECKING, Any, Mapping, NoReturn, Self, cast
 from uuid import uuid4
 
 from fake_useragent import UserAgent  # type: ignore
@@ -139,6 +139,16 @@ class Studio(Client):
 
         return tuple(self.check_response(endpoint, item, *masks) for item in items)
 
+    def get_playlists(self) -> NoReturn:
+        raise NotImplementedError
+
+    def get_videos(self, *video_ids: str, **masks: MASK) -> ANY_TUPLE:
+        '''
+        Get video data.
+        '''
+        LIST_ITEMS.update(videoIds=video_ids)
+        return self.list_endpoint('get', 'videos', len(video_ids), **masks)
+
     def list_playlists(self, max_playlists: int = maxsize, **masks: MASK) -> ANY_TUPLE:
         '''
         Returns a list of playlists in your channel. If max_playlists is not specified, all playlists are returned. Returns a tuple with items in the order specified by masks.
@@ -151,14 +161,17 @@ class Studio(Client):
         '''
         return self.list_endpoint('list', 'videos', max_videos, **masks)
 
-    def get_videos(self, *video_ids: str, **masks: MASK) -> ANY_TUPLE:
+    def create_playlist(self, title: str, visibility: OPT_VISIBILITY = None) -> str:
         '''
-        Get video data.
+        Create a new playlist.
         '''
-        LIST_ITEMS.update(videoIds=video_ids)
-        return self.list_endpoint('get', 'videos', len(video_ids), **masks)
+        CREATE_PLAYLIST.update(
+            privacyStatus=visibility,
+            title=Studio.validate_string(title, MAX_PLAYLIST_TITLE_LENGTH)
+        )
+        return self.post_endpoint('playlist/create', CREATE_PLAYLIST, 'playlistId')
 
-    def upload_video(
+    def create_video(
         self,
         content: RequestContent,
         title: str = '',
@@ -208,11 +221,20 @@ class Studio(Client):
         )
         return self.post_endpoint('upload/createvideo', UPLOAD_VIDEO, 'videoId')
 
-    def delete_video(self, video_id: str) -> NotImplementedError:
+    def delete_playlist(self) -> NoReturn:
+        '''
+        Delete playlist from your channel.
+        '''
+        raise NotImplementedError()
+
+    def delete_video(self) -> NoReturn:
         '''
         Delete video from your channel.
         '''
-        return NotImplementedError()  # TODO
+        raise NotImplementedError()
+
+    def edit_playlist(self) -> NoReturn:
+        raise NotImplementedError()
 
     def edit_video(
             self,
@@ -284,13 +306,3 @@ class Studio(Client):
             ))
 
         self.post_endpoint('video_manager/metadata_update', data, overallResult=UPDATE_SUCCESS)
-
-    def create_playlist(self, title: str, visibility: OPT_VISIBILITY = None) -> str:
-        '''
-        Create a new playlist.
-        '''
-        CREATE_PLAYLIST.update(
-            privacyStatus=visibility,
-            title=Studio.validate_string(title, MAX_PLAYLIST_TITLE_LENGTH)
-        )
-        return self.post_endpoint('playlist/create', CREATE_PLAYLIST, 'playlistId')
