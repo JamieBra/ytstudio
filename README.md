@@ -47,7 +47,7 @@ Examples of how to create a Studio instance can be found [here](examples/create_
 - [ ] Better documentation
 - [ ] Tests
 - [ ] Create PIP package
-- [ ] Find session token automatically from cookies
+- [ ] Find session token automatically from cookies / add OAuth flow
 - [ ] Add retries for 429 Too Many Requests especially for successive requests like listing endpoints.
 - [ ] Implement Studio.delete_video()
 - [ ] Implement Studio.get_video()
