@@ -12,9 +12,12 @@ with Studio(cookies) as studio:
     videos = studio.list_videos(10)
     pprint(videos)
 
-    # get 50 videos, and retrieve scheduling information, titles, and video IDs
+    # get all videos, but do not retrieve any attributes
+    videos = studio.list_videos()
+    pprint(videos)
+
+    # get all videos, and retrieve scheduling information, titles, and video IDs
     videos = studio.list_videos(
-        50,
         scheduledPublishingDetails=ALL_TRUE,
         title=True,
         videoId=True

@@ -17,10 +17,12 @@ For now, you can install with PIP.
 - Fully typed!
 - Names reflecting the official Youtube GUI in browser!
 - [List Playlists](examples/list_playlists.py)
-    - Specify page size.
+    - Automatic pagination.
+    - Specify all or some number of the results.
     - Specify what attributes to retrieve.
 - [List Videos](examples/list_videos.py)
-    - Specify page size.
+    - Automatic pagination.
+    - Specify all or some number of the results.
     - Specify what attributes to retrieve.
 - [Uploading Video](examples/upload_video.py) (**NOT LIMITED** - official API's videos.insert charges you 1600 quota units)
     - Ability to upload arbitrary data.
@@ -43,15 +45,13 @@ Examples of how to create a Studio instance can be found [here](examples/create_
 ## TO-DO
 
 - [ ] Better documentation
-- [ ] Better tests
-- [ ] Update examples
+- [ ] Tests
 - [ ] Create PIP package
 - [ ] Find session token automatically from cookies
 - [ ] Implement Studio.delete_video()
 - [ ] Implement Studio.get_video()
 - [ ] Implement for Studio.list_playlists() and Studio.list_videos():
     - [ ] Better method for specifying masks?
-    - [ ] Paging support
     - [ ] Listing order
 - [ ] Implement for Studio.edit_video():
     - [ ] Set as Premiere

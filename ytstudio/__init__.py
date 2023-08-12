@@ -5,6 +5,7 @@ from datetime import datetime
 from hashlib import sha1
 from operator import itemgetter
 from os.path import getsize
+from sys import maxsize
 from time import time
 from typing import TYPE_CHECKING, Any, Mapping, MutableMapping, Self, cast
 from uuid import uuid4
@@ -105,6 +106,7 @@ class Studio(Client):
                 raise KeyError()
             if check_present:
                 return itemgetter(*check_present)(response)
+            return response
         except KeyError:
             raise KeyError(f'Failed: {name}!', response)
 
@@ -112,26 +114,33 @@ class Studio(Client):
         response = super().post(endpoint, json=json).json()
         return self.check_response(endpoint, response, *check_present, **check_expected)
 
-    def list_endpoint(self, endpoint_type: str, template: MutableMapping[str, Any], page_size: int, **masks: MASK) -> ANY_TUPLE:
+    def list_endpoint(self, endpoint_type: str, template: MutableMapping[str, Any], max_items: int = maxsize, **masks: MASK) -> ANY_TUPLE:
         template.update(
             mask=masks,
-            pageSize=page_size
+            pageSize=min(500, max_items),
+            pageToken=''
         )
         endpoint = f'creator/list_creator_{endpoint_type}'
-        list = self.post_endpoint(endpoint, template, endpoint_type)
-        return tuple(self.check_response(endpoint, element, *masks) for element in list)
 
-    def list_playlists(self, page_size: int, **masks: MASK) -> ANY_TUPLE:
-        '''
-        Returns a list of playlists in your channel. Max page size is 500. Returns a tuple with items in the order specified by masks.
-        '''
-        return self.list_endpoint('playlists', LIST_PLAYLISTS, page_size, **masks)
+        items: list[Any] = []
+        while len(items) < max_items and template['pageToken'] is not None:
+            response = self.post_endpoint(endpoint, template)
+            items += response[endpoint_type]
+            template['pageToken'] = response.get('nextPageToken', None)
 
-    def list_videos(self, page_size: int, **masks: MASK) -> ANY_TUPLE:
+        return tuple(self.check_response(endpoint, item, *masks) for item in items)
+
+    def list_playlists(self, max_playlists: int = maxsize, **masks: MASK) -> ANY_TUPLE:
         '''
-        Returns a list of videos in your channel. Returns a tuple with items in the order specified by masks.
+        Returns a list of playlists in your channel. If max_playlists is not specified, all playlists are returned. Returns a tuple with items in the order specified by masks.
         '''
-        return self.list_endpoint('videos', LIST_VIDEOS, page_size, **masks)
+        return self.list_endpoint('playlists', LIST_PLAYLISTS, max_playlists, **masks)
+
+    def list_videos(self, max_videos: int = maxsize, **masks: MASK) -> ANY_TUPLE:
+        '''
+        Returns a list of videos in your channel. If max_videos is not specified, all videos are returned. Returns a tuple with items in the order specified by masks.
+        '''
+        return self.list_endpoint('videos', LIST_VIDEOS, max_videos, **masks)
 
     def upload_video(
         self,
