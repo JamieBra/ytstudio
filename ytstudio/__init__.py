@@ -10,6 +10,7 @@ from time import sleep, time
 from typing import TYPE_CHECKING, Any, Mapping, MutableMapping, Self, cast
 from uuid import uuid4
 
+from fake_useragent import UserAgent  # type: ignore
 from httpx import Client, Response
 from httpx._types import CookieTypes, RequestContent
 from js2py import EvalJs  # type: ignore
@@ -30,9 +31,16 @@ MAX_DESCRIPTION_LENGTH = 5000
 MAX_PLAYLIST_TITLE_LENGTH = 150
 METADATA_SUCCESS = dict(resultCode='UPDATE_SUCCESS')
 YT_STUDIO_URL = 'https://studio.youtube.com'
+USER_AGENT: str = UserAgent().firefox  # type: ignore
 
 
 class Studio(Client):
+    @staticmethod
+    def retry_after(response: Response) -> None:
+        if retry_after := response.headers.get('Retry-After', None):
+            sleep(int(retry_after))
+            raise TryAgain
+
     @staticmethod
     def validate_string(string: str, max_length: int) -> str:
         if len(string) > max_length:
@@ -40,12 +48,6 @@ class Studio(Client):
         if '<' in string or '>' in string:
             print(f'{string} contains "<" or ">". This will likely fail!')
         return string
-
-    @staticmethod
-    def retry_after(response: Response) -> None:
-        if retry_after := response.headers.get('Retry-After', None):
-            sleep(int(retry_after))
-            raise TryAgain
 
     def __init__(
             self,
@@ -55,7 +57,7 @@ class Studio(Client):
     ) -> None:
         super().__init__(
             headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+                'User-Agent': USER_AGENT,
                 'X-Origin': YT_STUDIO_URL
             },
             cookies=cookies,
