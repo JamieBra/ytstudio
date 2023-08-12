@@ -63,7 +63,7 @@ class Studio(Client):
             cookies=cookies,
             http2=True,
             base_url='https://studio.youtube.com/youtubei/v1/',
-            event_hooks=dict(response=[Studio.retry_after, Response.raise_for_status])
+            event_hooks=dict(response=[Studio.retry_after])
         )
         self.request = retry(retry=retry_if_exception_type(TryAgain))(self.request)
 
