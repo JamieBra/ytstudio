@@ -7,7 +7,7 @@ from operator import itemgetter
 from os.path import getsize
 from sys import maxsize
 from time import sleep, time
-from typing import TYPE_CHECKING, Any, Mapping, MutableMapping, Self, cast
+from typing import TYPE_CHECKING, Any, Mapping, Self, cast
 from uuid import uuid4
 
 from fake_useragent import UserAgent  # type: ignore
@@ -18,8 +18,8 @@ from lxml.html import HtmlElement  # type: ignore
 from pyquery import PyQuery  # type: ignore
 from tenacity import TryAgain, retry, retry_if_exception_type
 
-from .templates import (CREATE_PLAYLIST, LIST_PLAYLISTS, LIST_VIDEOS,
-                        METADATA_UPDATE, UPLOAD_VIDEO, generate)
+from .templates import (CREATE_PLAYLIST, LIST_ITEMS, METADATA_UPDATE,
+                        UPDATE_SUCCESS, UPLOAD_VIDEO, generate)
 from .typing import (ANY_TUPLE, MASK, OPT_BOOL, OPT_STR_ITER, OPT_VISIBILITY,
                      Visibility)
 
@@ -29,7 +29,6 @@ if TYPE_CHECKING:
 MAX_TITLE_LENGTH = 100
 MAX_DESCRIPTION_LENGTH = 5000
 MAX_PLAYLIST_TITLE_LENGTH = 150
-METADATA_SUCCESS = dict(resultCode='UPDATE_SUCCESS')
 YT_STUDIO_URL = 'https://studio.youtube.com'
 USER_AGENT: str = UserAgent().firefox  # type: ignore
 
@@ -124,19 +123,19 @@ class Studio(Client):
         response = self.post(endpoint, json=json).json()
         return self.check_response(endpoint, response, *check_present, **check_expected)
 
-    def list_endpoint(self, endpoint_type: str, template: MutableMapping[str, Any], max_items: int = maxsize, **masks: MASK) -> ANY_TUPLE:
-        template.update(
+    def list_endpoint(self, endpoint_verb: str, endpoint_type: str, max_items: int, **masks: MASK) -> ANY_TUPLE:
+        LIST_ITEMS.update(
             mask=masks,
             pageSize=min(500, max_items),
             pageToken=''
         )
-        endpoint = f'creator/list_creator_{endpoint_type}'
+        endpoint = f'creator/{endpoint_verb}_creator_{endpoint_type}'
 
         items: list[Any] = []
-        while len(items) < max_items and template['pageToken'] is not None:
-            response = self.post_endpoint(endpoint, template)
+        while len(items) < max_items and LIST_ITEMS['pageToken'] is not None:
+            response = self.post_endpoint(endpoint, LIST_ITEMS)
             items += response[endpoint_type]
-            template['pageToken'] = response.get('nextPageToken', None)
+            LIST_ITEMS['pageToken'] = response.get('nextPageToken', None)
 
         return tuple(self.check_response(endpoint, item, *masks) for item in items)
 
@@ -144,13 +143,20 @@ class Studio(Client):
         '''
         Returns a list of playlists in your channel. If max_playlists is not specified, all playlists are returned. Returns a tuple with items in the order specified by masks.
         '''
-        return self.list_endpoint('playlists', LIST_PLAYLISTS, max_playlists, **masks)
+        return self.list_endpoint('list', 'playlists', max_playlists, **masks)
 
     def list_videos(self, max_videos: int = maxsize, **masks: MASK) -> ANY_TUPLE:
         '''
         Returns a list of videos in your channel. If max_videos is not specified, all videos are returned. Returns a tuple with items in the order specified by masks.
         '''
-        return self.list_endpoint('videos', LIST_VIDEOS, max_videos, **masks)
+        return self.list_endpoint('list', 'videos', max_videos, **masks)
+
+    def get_videos(self, *video_ids: str, **masks: MASK) -> ANY_TUPLE:
+        '''
+        Get video data.
+        '''
+        LIST_ITEMS.update(videoIds=video_ids)
+        return self.list_endpoint('get', 'videos', len(video_ids), **masks)
 
     def upload_video(
         self,
@@ -200,31 +206,13 @@ class Studio(Client):
             resourceId=dict(scottyResourceId=dict(id=scotty_resource_id)),
             **extra_fields
         )
-        videoId = self.post_endpoint('upload/createvideo', UPLOAD_VIDEO, 'videoId')
-
-        return videoId
+        return self.post_endpoint('upload/createvideo', UPLOAD_VIDEO, 'videoId')
 
     def delete_video(self, video_id: str) -> NotImplementedError:
         '''
         Delete video from your channel.
         '''
         return NotImplementedError()  # TODO
-
-    def get_video(self, video_id: str) -> NotImplementedError:
-        '''
-        Get video data.
-        '''
-        return NotImplementedError()  # TODO
-
-    def create_playlist(self, title: str, visibility: OPT_VISIBILITY = None) -> str:
-        '''
-        Create a new playlist.
-        '''
-        CREATE_PLAYLIST.update(
-            privacyStatus=visibility,
-            title=Studio.validate_string(title, MAX_PLAYLIST_TITLE_LENGTH)
-        )
-        return self.post_endpoint('playlist/create', CREATE_PLAYLIST, 'playlistId')
 
     def edit_video(
             self,
@@ -295,4 +283,14 @@ class Studio(Client):
                 newRacy=f'MDE_RACY_TYPE_{"" if restrict_video else "NOT_"}RESTRICTED'
             ))
 
-        self.post_endpoint('video_manager/metadata_update', data, overallResult=METADATA_SUCCESS)
+        self.post_endpoint('video_manager/metadata_update', data, overallResult=UPDATE_SUCCESS)
+
+    def create_playlist(self, title: str, visibility: OPT_VISIBILITY = None) -> str:
+        '''
+        Create a new playlist.
+        '''
+        CREATE_PLAYLIST.update(
+            privacyStatus=visibility,
+            title=Studio.validate_string(title, MAX_PLAYLIST_TITLE_LENGTH)
+        )
+        return self.post_endpoint('playlist/create', CREATE_PLAYLIST, 'playlistId')

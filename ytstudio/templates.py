@@ -2,6 +2,8 @@ from typing import Any
 
 ALL_TRUE = dict(all=True)
 
+UPDATE_SUCCESS = dict(resultCode='UPDATE_SUCCESS')
+
 EMPTY_DICT = {}
 CONTEXT: dict[str, Any] = dict(
     context=dict(
@@ -15,8 +17,7 @@ CONTEXT: dict[str, Any] = dict(
 )
 
 CREATE_PLAYLIST = CONTEXT.copy()
-LIST_PLAYLISTS = CONTEXT.copy()
-LIST_VIDEOS = CONTEXT.copy()
+LIST_ITEMS = CONTEXT.copy()
 METADATA_UPDATE = CONTEXT.copy()
 UPLOAD_VIDEO = CONTEXT.copy()
 
@@ -24,4 +25,4 @@ UPLOAD_VIDEO = CONTEXT.copy()
 def generate(token: Any, channel_id: Any, on_behalf_of_user: Any) -> None:
     CONTEXT['context']['request']['sessionInfo']['token'] = token
     CONTEXT['context']['user']['onBehalfOfUser'] = on_behalf_of_user
-    LIST_PLAYLISTS['channelId'] = UPLOAD_VIDEO['channelId'] = channel_id
+    LIST_ITEMS['channelId'] = UPLOAD_VIDEO['channelId'] = channel_id
