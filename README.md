@@ -20,9 +20,18 @@ For now, you can install with PIP.
     - Automatic pagination.
     - Specify all or some number of the results.
     - Specify what attributes to retrieve.
+- [Get Playlist(s)](examples/get_playlists.py) (not implemented yet)
+- [Create Playlist](examples/create_playlist.py)
+    - Specify title and privacy setting.
+- [Delete Playlist](examples/delete_playlist.py) (not implemented yet)
+- [Edit Playlist](examples/edit_playlist.py) (not implemented yet)
+
 - [List Videos](examples/list_videos.py)
     - Automatic pagination.
     - Specify all or some number of the results.
+    - Specify what attributes to retrieve.
+- [Get Video(s)](examples/get_videos.py)
+    - Get any number of specific videos by ID.
     - Specify what attributes to retrieve.
 - [Uploading Video](examples/upload_video.py) (**NOT LIMITED** - official API's videos.insert charges you 1600 quota units)
     - Ability to upload arbitrary data.
@@ -32,7 +41,6 @@ For now, you can install with PIP.
 - [Edit Video](examples/edit_video.py) (includes scheduling uploads)
     - Easy to use fields for every option that is editable in browser before pressing 'SHOW MORE'. This is mainly due to how many fields there are and the variations therein.
     - Ability to add custom fields to support changes in the API and more advanced options.
-- [Get Video](examples/get_video.py) (not implemented yet)
 
 ## Login
 
@@ -48,8 +56,7 @@ Examples of how to create a Studio instance can be found [here](examples/create_
 - [ ] Tests
 - [ ] Create PIP package
 - [ ] Find session token automatically from cookies / add OAuth flow
-- [ ] Implement Studio.delete_video()
-- [ ] Implement Studio.get_video()
+- [ ] Implement missing functions
 - [ ] Implement for Studio.list_playlists() and Studio.list_videos():
     - [ ] Better method for specifying masks?
     - [ ] Listing order
