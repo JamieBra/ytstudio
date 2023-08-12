@@ -6,15 +6,16 @@ from hashlib import sha1
 from operator import itemgetter
 from os.path import getsize
 from sys import maxsize
-from time import time
+from time import sleep, time
 from typing import TYPE_CHECKING, Any, Mapping, MutableMapping, Self, cast
 from uuid import uuid4
 
-from httpx import Client
+from httpx import Client, Response
 from httpx._types import CookieTypes, RequestContent
 from js2py import EvalJs  # type: ignore
 from lxml.html import HtmlElement  # type: ignore
 from pyquery import PyQuery  # type: ignore
+from tenacity import TryAgain, retry, retry_if_exception_type
 
 from .templates import (CREATE_PLAYLIST, LIST_PLAYLISTS, LIST_VIDEOS,
                         METADATA_UPDATE, UPLOAD_VIDEO, generate)
@@ -40,6 +41,12 @@ class Studio(Client):
             print(f'{string} contains "<" or ">". This will likely fail!')
         return string
 
+    @staticmethod
+    def retry_after(response: Response) -> None:
+        if retry_after := response.headers.get('Retry-After', None):
+            sleep(int(retry_after))
+            raise TryAgain
+
     def __init__(
             self,
             cookies: CookieTypes,
@@ -53,13 +60,14 @@ class Studio(Client):
             },
             cookies=cookies,
             http2=True,
-            base_url='https://studio.youtube.com/youtubei/v1/'
+            base_url='https://studio.youtube.com/youtubei/v1/',
+            event_hooks=dict(response=[Studio.retry_after, Response.raise_for_status])
         )
+        self.request = retry(retry=retry_if_exception_type(TryAgain))(self.request)
 
-        sapisid_hash = self.generate_sapisid_hash()
+        self.headers.update(dict(Authorization=f'SAPISIDHASH {self.generate_sapisid_hash()}'))
 
         self.auto_login = login
-        self.headers.update(dict(Authorization=f'SAPISIDHASH {sapisid_hash}'))
         self.session_token = session_token or self.cookies['SESSION_TOKEN']
 
         self.js = EvalJs()
@@ -111,7 +119,7 @@ class Studio(Client):
             raise KeyError(f'Failed: {name}!', response)
 
     def post_endpoint(self, endpoint: str, json: Any, *check_present: str, **check_expected: Any) -> Any:
-        response = super().post(endpoint, json=json).json()
+        response = self.post(endpoint, json=json).json()
         return self.check_response(endpoint, response, *check_present, **check_expected)
 
     def list_endpoint(self, endpoint_type: str, template: MutableMapping[str, Any], max_items: int = maxsize, **masks: MASK) -> ANY_TUPLE:
