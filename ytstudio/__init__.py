@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from base64 import b64encode
-from datetime import datetime
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from hashlib import sha1
 from operator import itemgetter
 from os.path import getsize
@@ -37,7 +38,13 @@ class Studio(Client):
     @staticmethod
     def retry_after(response: Response) -> None:
         if retry_after := response.headers.get('Retry-After', None):
-            sleep(int(retry_after))
+            try:
+                secs = int(retry_after)
+            except ValueError:
+                retry_after: str
+                secs = (parsedate_to_datetime(retry_after) - datetime.now(UTC)).total_seconds()
+            if secs > 0:
+                sleep(secs)
             raise TryAgain
 
     @staticmethod
